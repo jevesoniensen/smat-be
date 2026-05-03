@@ -1,0 +1,27 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: smat-be
+  data:
+    jpa:
+      hibernate:
+        ddl-auto: update
+      show-sql: true
+  datasource:
+    hikari:
+      connectionTimeout: 20000
+      maximumPoolSize: 5
+    username: 'admin'
+    password: 'admin'
+    url: "jdbc:postgresql://localhost:5432/smat"
+
+springdoc:
+  show-actuator: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
