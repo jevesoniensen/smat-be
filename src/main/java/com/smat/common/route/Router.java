@@ -36,11 +36,11 @@ public class Router {
 
     private ConfigurableListableBeanFactory beanFactory;
 
-    public List<RouterFunction<ServerResponse>> beanRegister(String tag, String modulo, JpaRepositoryExtended<?, Integer>... repoList) {
+    public List<RouterFunction<ServerResponse>> beanRegister(String tag, String modulo, JpaRepositoryExtended<?, ?>... repoList) {
         return Stream.of(repoList).map(repository -> {
             var basicDBOperations = new BasicDBOperations<>(repository);
             String beanName = "beanCrud%s".formatted(repository.getClazz().getSimpleName());
-            RouterFunction<ServerResponse> crud = routeCRUD(tag, modulo, basicDBOperations.repository());
+            RouterFunction<ServerResponse> crud = routeCRUD(tag, modulo, repository);
             this.beanFactory.initializeBean(crud, beanName);
             this.beanFactory.autowireBean(crud);
             this.beanFactory.registerSingleton(beanName, crud);
@@ -54,25 +54,25 @@ public class Router {
         );
     }
 
-    public static <T> RouterFunction<ServerResponse> routeView(String tag, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> RouterFunction<ServerResponse> routeView(String tag, JpaRepositoryExtended<T, ID> repository) {
         return routeView(tag, "", repository);
     }
 
-    public static <T> RouterFunction<ServerResponse> routeView(String tag, String module, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> RouterFunction<ServerResponse> routeView(String tag, String module, JpaRepositoryExtended<T, ID> repository) {
         var basicDBOperations = new BasicDBOperations<>(repository);
         return aggregator(route(),
                 List.of(
                         findById(tag, module, repository.getClazz(), basicDBOperations::findById),
-                        findAll(tag, module, basicDBOperations.repository())
+                        findAll(tag, module, repository)
                 )
         );
     }
 
-    public static <T> RouterFunction<ServerResponse> routeCRUD(String tag, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> RouterFunction<ServerResponse> routeCRUD(String tag, JpaRepositoryExtended<T, ID> repository) {
         return routeCRUD(tag, "", repository);
     }
 
-    public static <T> RouterFunction<ServerResponse> routeCRUD(String tag, String module, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> RouterFunction<ServerResponse> routeCRUD(String tag, String module, JpaRepositoryExtended<T, ID> repository) {
         var basicDBOperations = new BasicDBOperations<>(repository);
         return aggregator(route(),
                 List.of(
@@ -92,10 +92,10 @@ public class Router {
     }
 
     private static <T> @NonNull String getEndPointName(Class<T> clazz) {
-        return clazz.getSimpleName().toLowerCase();
+        return clazz.getSimpleName().toLowerCase().replace("dto", "");
     }
 
-    public static <T> Consumer<SpringdocRouteBuilder> findAll(String tag, String module, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> Consumer<SpringdocRouteBuilder> findAll(String tag, String module, JpaRepositoryExtended<T, ID> repository) {
         var basicDBOperations = new BasicDBOperations<>(repository);
         return route -> route.GET(
                 "/api/%s%s".formatted(module, getEndPointName(repository.getClazz())),
@@ -120,31 +120,35 @@ public class Router {
         return route -> route.GET("/api/%s%s/{id}".formatted(module, getEndPointName(clazz)), accept(APPLICATION_JSON), handler,
                 ops -> ops.operationId("findById")
                         .tag(tag)
-                        .parameter(parameterBuilder().name("id").in(ParameterIn.PATH).required(true).schema(org.springdoc.core.fn.builders.schema.Builder.schemaBuilder().type("integer").pattern("[0-9]+")))
+                        .parameter(parameterBuilder().name("id").in(ParameterIn.PATH).required(true).schema(org.springdoc.core.fn.builders.schema.Builder.schemaBuilder().type("string")))
                         .response(responseBuilder().responseCode("200")
                                 .description("Existing entity")
                                 .implementation(clazz)));
     }
 
-    public static <T> Consumer<SpringdocRouteBuilder> delete(String tag, String module, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> Consumer<SpringdocRouteBuilder> delete(String tag, String module, JpaRepositoryExtended<T, ID> repository) {
         var basicDBOperations = new BasicDBOperations<>(repository);
         return route -> route.DELETE("/api/%s%s/{id}".formatted(module, getEndPointName(repository.getClazz())), accept(APPLICATION_JSON), basicDBOperations::delete,
                 ops -> ops.operationId("delete")
                         .tag(tag)
-                        .parameter(parameterBuilder().name("id").in(ParameterIn.PATH).required(true).schema(org.springdoc.core.fn.builders.schema.Builder.schemaBuilder().type("integer").pattern("[0-9]+")))
+                        .parameter(parameterBuilder().name("id").in(ParameterIn.PATH).required(true).schema(org.springdoc.core.fn.builders.schema.Builder.schemaBuilder().type("string")))
                         .response(responseBuilder().responseCode("200").description("Deleted")));
     }
 
-    public static <T> Consumer<SpringdocRouteBuilder> create(String tag, String module, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> Consumer<SpringdocRouteBuilder> create(String tag, String module, JpaRepositoryExtended<T, ID> repository) {
         var basicDBOperations = new BasicDBOperations<>(repository);
+        return create(tag, module, repository.getClazz(), basicDBOperations::create);
+    }
+
+    public static <T> Consumer<SpringdocRouteBuilder> create(String tag, String module, Class<T> clazz, HandlerFunction<ServerResponse> create) {
         return route -> route.POST(
-                "/api/%s%s".formatted(module, getEndPointName(repository.getClazz())),
-                accept(APPLICATION_JSON), basicDBOperations::create,
-                ops -> getChangeOperation(ops, repository.getClazz(), repository.getClazz(),tag, "create", "200")
+                "/api/%s%s".formatted(module, getEndPointName(clazz)),
+                accept(APPLICATION_JSON), create,
+                ops -> getChangeOperation(ops, clazz, clazz,tag, "create", "200")
         );
     }
 
-    public static <T> Consumer<SpringdocRouteBuilder> update(BasicDBOperations<T> v, String tag, String module, JpaRepositoryExtended<T, Integer> repository) {
+    public static <T, ID> Consumer<SpringdocRouteBuilder> update(BasicDBOperations<T, ID> v, String tag, String module, JpaRepositoryExtended<T, ID> repository) {
         var basicDBOperations = new BasicDBOperations<>(repository);
         return route -> route.PUT(
                 "/api/%s%s/{id}".formatted(module, getEndPointName(repository.getClazz())),
@@ -164,7 +168,7 @@ public class Router {
     public static <T,R> void getChangeOperation(Builder ops, Class<T> requestClass, Class<R> responseClass, String tag, String create, String responseCode) {
         ops.operationId(create)
                 .tag(tag)
-                .parameter(parameterBuilder().name("id").in(ParameterIn.PATH).required(true).schema(org.springdoc.core.fn.builders.schema.Builder.schemaBuilder().type("integer").pattern("[0-9]+")))
+                .parameter(parameterBuilder().name("id").in(ParameterIn.PATH).required(true).schema(org.springdoc.core.fn.builders.schema.Builder.schemaBuilder().type("string")))
                 .requestBody(requestBodyBuilder().implementation(requestClass))
                 .response(responseBuilder().responseCode(responseCode).implementation(responseClass));
     }

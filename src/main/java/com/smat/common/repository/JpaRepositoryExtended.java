@@ -10,6 +10,10 @@ public interface JpaRepositoryExtended<T, ID> extends JpaRepository<T, ID> {
 
     Class<T> getClazz();
 
+    default ID parseId(String id) {
+        return (ID) Integer.valueOf(id);
+    }
+
     interface Updater<T> {
         T update(T body, T entity);
     }

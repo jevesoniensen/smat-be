@@ -10,7 +10,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
-public record BasicDBOperations<T>(JpaRepositoryExtended<T, Integer> repository) {
+public record BasicDBOperations<T, ID>(JpaRepositoryExtended<T, ID> repository) {
 
      public static <R> Mono<ServerResponse> commonHandler(Supplier<R> handler) {
           return ok()
@@ -23,7 +23,8 @@ public record BasicDBOperations<T>(JpaRepositoryExtended<T, Integer> repository)
      }
 
      public Mono<ServerResponse> findById(ServerRequest request) {
-          return commonHandler(() -> repository.findById(Integer.valueOf(request.pathVariable("id"))));
+          return commonHandler(() -> repository.findById(repository.parseId(request.pathVariable("id")))
+                  .orElseThrow(() -> new RuntimeException("findById -> Not found")));
      }
 
      public Mono<ServerResponse> create(ServerRequest request) {
@@ -37,7 +38,7 @@ public record BasicDBOperations<T>(JpaRepositoryExtended<T, Integer> repository)
 
      public Mono<ServerResponse> update(ServerRequest request) {
           return request.bodyToMono(repository.getClazz()).flatMap(body -> {
-               var entity = repository.findById(Integer.valueOf(request.pathVariable("id")))
+               var entity = repository.findById(repository.parseId(request.pathVariable("id")))
                        .orElseThrow(() -> new RuntimeException("findById -> Not found"));
                T apply = repository.getUpdater().update(body, entity);
                repository.save(apply);
@@ -48,7 +49,7 @@ public record BasicDBOperations<T>(JpaRepositoryExtended<T, Integer> repository)
      }
 
      public Mono<ServerResponse> delete(ServerRequest request) {
-          repository.deleteById(Integer.valueOf(request.pathVariable("id")));
+          repository.deleteById(repository.parseId(request.pathVariable("id")));
           return ok().contentType(APPLICATION_JSON).build();
      }
 }

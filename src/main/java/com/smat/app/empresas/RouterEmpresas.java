@@ -1,13 +1,8 @@
 package com.smat.app.empresas;
 
-import com.smat.app.empresas.model.RamosAtividade;
-import com.smat.app.empresas.model.RepresentantesEmpresa;
-import com.smat.app.empresas.model.TelefonesEmpregadores;
-import com.smat.app.empresas.model.TiposEmpregadores;
 import com.smat.app.empresas.repository.*;
 import com.smat.app.empresas.service.EmpresasService;
 import com.smat.app.fiscalizacoes.model.Empregadores;
-import com.smat.common.repository.BasicDBOperations;
 import com.smat.common.route.Router;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import lombok.AllArgsConstructor;
