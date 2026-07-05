@@ -3,6 +3,7 @@ package com.smat.app.acidentes.controller;
 import com.smat.app.acidentes.dto.AcidenteDto;
 import com.smat.app.acidentes.repository.*;
 import com.smat.app.acidentes.service.AcidenteService;
+import com.smat.common.dto.ResponseStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -68,7 +69,7 @@ public class RouterAcidente {
         return routeBuilder(
                 List.of(
                         findAll(TAG, "pesquisa/", repository),
-                        create(TAG, "gravar/", AcidenteDto.class, service::create)
+                        create(TAG, "gravar/", AcidenteDto.class, ResponseStatus.class, service::create)
 //                        findByParams(
 //                                TAG,
 //                                "pesquisa/" ,

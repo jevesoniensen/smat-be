@@ -16,7 +16,7 @@ public class Testemunhas {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "testemunha")
-    private Integer testemunha;
+    private Integer id;
     @Column(name = "acidente")
     private Integer acidente;
     @Column(name = "municipio")

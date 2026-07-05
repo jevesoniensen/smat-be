@@ -35,7 +35,7 @@ public class SecurityConfig implements WebFluxConfigurer {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000","http://localhost:4200" )); // Or "*" for all
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000","http://localhost:4200","http://127.0.0.1:4200" )); // Or "*" for all
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);

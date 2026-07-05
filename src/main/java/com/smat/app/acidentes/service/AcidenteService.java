@@ -9,17 +9,28 @@ import com.smat.app.acidentes.repository.AcidentesRepository;
 import com.smat.app.acidentes.repository.LocaisLesaoAcidentesRepository;
 import com.smat.app.acidentes.repository.TestemunhasRepository;
 import com.smat.app.acidentes.repository.TrabalhadoresRepository;
+import com.smat.common.dto.ResponseStatus;
+import com.smat.outbox.service.OutboxService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
+import java.util.UUID;
+
+import static com.smat.app.acidentes.dto.AcidenteIdsDto.acidentIdsDto;
+import static com.smat.app.acidentes.dto.LocalLesaoAcidenteDto.localLesaoAcidente;
+import static com.smat.common.dto.IdDto.id;
+import static java.util.stream.Collectors.toMap;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AcidenteService {
@@ -31,20 +42,26 @@ public class AcidenteService {
     private final AcidenteMapper acidenteMapper;
     private final TrabalhadorMapper trabalhadorMapper;
     private final TestemunhaMapper testemunhaMapper;
+    private final OutboxService outboxService;
 
     public Mono<ServerResponse> create(ServerRequest request) {
-        return request.bodyToMono(AcidenteDto.class).flatMap(body -> {
-            var entity = create(body);
-            return ok()
-                    .contentType(APPLICATION_JSON)
-                    .body(fromValue(entity));
-        });
+        return request.bodyToMono(AcidenteDto.class).flatMap(body -> Mono.fromRunnable(() -> register(body))
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(ok()
+                        .contentType(APPLICATION_JSON)
+                        .body(fromValue(new ResponseStatus("success", "Acidente criado com sucesso")))
+                ));
+    }
+
+    public void register(AcidenteDto acidente){
+        outboxService.outbox("AccidentCreated", UUID.randomUUID().toString(), acidente);
     }
 
     @Transactional
-    public AcidenteDto create(AcidenteDto acidenteDto) {
+    public void save(AcidenteDto acidenteDto) {
 
-        var trabalhadorEntity = trabalhadorMapper.toEntity(acidenteDto.trabalhador());
+        var trabalhador = acidenteDto.trabalhador();
+        var trabalhadorEntity = trabalhadorMapper.toEntity(trabalhador);
         trabalhadorEntity = trabalhadoresRepository.save(trabalhadorEntity);
         var trabalhadorId = trabalhadorEntity.getTrabalhador();
 
@@ -53,11 +70,19 @@ public class AcidenteService {
         acidenteEntity = acidentesRepository.save(acidenteEntity);
 
         var acidenteId = acidenteEntity.getAcidente();
-        testemunhaMapper.toEntity(acidenteId, acidenteDto.testemunhas()).forEach(testemunhasRepository::save);
+        var testemunhasMap = testemunhaMapper.toEntity(acidenteId, acidenteDto.testemunhas()).stream()
+                .map(testemunhasRepository::save)
+                .map(t -> id(t.getId(), testemunhaMapper.toDto(t))).toList();
 
-        acidenteDto.locaisLesaoAcidentes().stream().map(lla -> new LocaisLesaoAcidentes(acidenteId, lla))
-                .forEach(locaisLesaoAcidentesRepository::save);
+        var llas = acidenteDto.locaisLesaoAcidentes().stream().map(lla -> new LocaisLesaoAcidentes(acidenteId, lla))
+                .map(locaisLesaoAcidentesRepository::save)
+                .map(lla -> id(lla.getId().getLocalLesao(), localLesaoAcidente(lla.getId().getLocalLesao())))
+                .toList();
 
-        return acidenteDto;
+        var acidentIdsDto = acidentIdsDto(
+                id(acidenteId, acidenteDto),
+                id(trabalhadorId, trabalhador), testemunhasMap, llas);
+
+        outboxService.outbox("AccidentIdsGenerated", UUID.randomUUID().toString(), acidentIdsDto);
     }
 }

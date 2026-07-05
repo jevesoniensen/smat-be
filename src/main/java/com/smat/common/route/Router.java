@@ -48,7 +48,7 @@ public class Router {
         }).toList();
     }
 
-    public static <T> RouterFunction<ServerResponse> routeBuilder(List<Consumer<SpringdocRouteBuilder>> endpoints) {
+    public static RouterFunction<ServerResponse> routeBuilder(List<Consumer<SpringdocRouteBuilder>> endpoints) {
         return aggregator(route(),
                 endpoints
         );
@@ -141,10 +141,14 @@ public class Router {
     }
 
     public static <T> Consumer<SpringdocRouteBuilder> create(String tag, String module, Class<T> clazz, HandlerFunction<ServerResponse> create) {
+        return create(tag, module, clazz, clazz, create);
+    }
+
+    public static <T, R> Consumer<SpringdocRouteBuilder> create(String tag, String module, Class<T> requestClass, Class<R> responseClass, HandlerFunction<ServerResponse> create) {
         return route -> route.POST(
-                "/api/%s%s".formatted(module, getEndPointName(clazz)),
+                "/api/%s%s".formatted(module, getEndPointName(requestClass)),
                 accept(APPLICATION_JSON), create,
-                ops -> getChangeOperation(ops, clazz, clazz,tag, "create", "200")
+                ops -> getChangeOperation(ops, requestClass, responseClass,tag, "create", "200")
         );
     }
 

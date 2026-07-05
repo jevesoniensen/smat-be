@@ -25,4 +25,5 @@ public record TrabalhadorDto(Integer municipio,
                              String PISPASEPNIT,
                              String telefone,
                              String ddd) {
+
 }

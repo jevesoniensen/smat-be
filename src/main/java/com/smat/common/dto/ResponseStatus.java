@@ -1,4 +1,3 @@
 package com.smat.common.dto;
 
-public record ResponseStatus() {
-}
+public record ResponseStatus(String status, String message) {}

@@ -8,11 +8,14 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.commons.collections4.CollectionUtils.emptyIfNull;
+
 @Component
 public class TestemunhaMapper {
 
-    public List<Testemunhas> toEntity(@NotNull Integer acidenteId, @NotNull List<TestemunhaDto> dtos) {
-        return dtos.stream()
+    public List<Testemunhas> toEntity(@NotNull Integer acidenteId, List<TestemunhaDto> dtos) {
+
+        return emptyIfNull(dtos).stream()
                 .filter(Objects::nonNull)
                 .map(dto -> toEntity(acidenteId, dto))
                 .toList();
