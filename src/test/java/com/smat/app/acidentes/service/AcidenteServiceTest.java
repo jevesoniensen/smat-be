@@ -11,6 +11,7 @@ import com.smat.app.acidentes.repository.AcidentesRepository;
 import com.smat.app.acidentes.repository.LocaisLesaoAcidentesRepository;
 import com.smat.app.acidentes.repository.TestemunhasRepository;
 import com.smat.app.acidentes.repository.TrabalhadoresRepository;
+import com.smat.outbox.service.OutboxService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -43,12 +44,14 @@ class AcidenteServiceTest {
     private TrabalhadorMapper trabalhadorMapper;
     @Mock
     private TestemunhaMapper testemunhaMapper;
+    @Mock
+    private OutboxService outboxService;
 
     @InjectMocks
     private AcidenteService acidenteService;
 
     @Test
-    void create_shouldPublishToKafka() {
+    void save_shouldSaveAcidenteAndPublishToOutbox() {
         // Arrange
         TrabalhadorDto trabalhadorDto = new TrabalhadorDto(
                 null, null, null, null, "Trabalhador", "123", "456", null, null, null, null, "M", null,
@@ -75,9 +78,23 @@ class AcidenteServiceTest {
         when(testemunhaMapper.toEntity(anyInt(), anyList())).thenReturn(List.of());
 
         // Act
-        //acidenteService.create(acidenteDto); //TODO fix this test
+        acidenteService.save(acidenteDto);
 
         // Assert
+        verify(trabalhadoresRepository).save(trabalhadorEntity);
         verify(acidentesRepository).save(acidenteEntity);
+        verify(outboxService).outbox(eq("AccidentIdsGenerated"), anyString(), any());
+    }
+
+    @Test
+    void register_shouldPublishToOutbox() {
+        // Arrange
+        AcidenteDto acidenteDto = mock(AcidenteDto.class);
+
+        // Act
+        acidenteService.register(acidenteDto);
+
+        // Assert
+        verify(outboxService).outbox(eq("AccidentCreated"), anyString(), eq(acidenteDto));
     }
 }
